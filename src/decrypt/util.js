@@ -1,4 +1,5 @@
 const ID3Writer = require("browser-id3-writer");
+const musicMetadata = require("music-metadata-browser");
 export const FLAC_HEADER = [0x66, 0x4C, 0x61, 0x43];
 export const MP3_HEADER = [0x49, 0x44, 0x33];
 export const OGG_HEADER = [0x4F, 0x67, 0x67, 0x53];
@@ -92,11 +93,25 @@ export async function GetWebImage(pic_url) {
     return {"buffer": null, "src": pic_url, "url": "", "type": ""}
 }
 
-export function WriteMp3Meta(audioData, artistList, title, album, pictureData = null, pictureDesc = "Cover") {
+export async function WriteMp3Meta(audioData, artistList, title, album, pictureData = null, pictureDesc = "Cover", originalMeta = null) {
     const writer = new ID3Writer(audioData);
-    writer.setFrame("TPE1", artistList)
-        .setFrame("TIT2", title)
-        .setFrame("TALB", album);
+    if (originalMeta !== null) {
+        artistList = originalMeta.common.artists || artistList
+        title = originalMeta.common.title || title
+        album = originalMeta.common.album || album
+        const frames = originalMeta.native['ID3v2.4'] || originalMeta.native['ID3v2.3'] || originalMeta.native['ID3v2.2'] || []
+        frames.forEach(frame => {
+            if (frame.id !== 'TPE1' && frame.id !== 'TIT2' && frame.id !== 'TALB') {
+                try {
+                    writer.setFrame(frame.id, frame.value)
+                } catch (e) {
+                }
+            }
+        })
+    }
+    writer.setFrame('TPE1', artistList)
+        .setFrame('TIT2', title)
+        .setFrame('TALB', album);
     if (pictureData !== null) {
         writer.setFrame('APIC', {
             type: 3,
